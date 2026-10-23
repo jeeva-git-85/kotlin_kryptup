@@ -21,19 +21,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kryptup.kryptup.BuildConfig
+import com.kryptup.kryptup.data.model.TransactionRecord
+import com.kryptup.kryptup.data.model.TransactionType
 import com.kryptup.kryptup.ui.theme.*
 import com.kryptup.kryptup.voice.AgentAction
 import com.kryptup.kryptup.voice.FinancialNlpEngine
@@ -43,6 +46,9 @@ import com.kryptup.kryptup.voice.TextToSpeechManager
 import com.kryptup.kryptup.voice.VoiceAssistantManager
 import com.kryptup.kryptup.voice.VoiceIntent
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class TimeframeData(
     val changeText: String,
@@ -64,16 +70,25 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     val userFirstName by viewModel.userFirstName.collectAsState()
+    val fiatBalanceInr by viewModel.fiatBalanceInr.collectAsState()
+    val transactions by viewModel.transactions.collectAsState()
+    val totalMonthlySpentUsd by viewModel.totalMonthlySpentUsd.collectAsState()
     val notifications by viewModel.notifications.collectAsState()
     val unreadCount by viewModel.unreadCount.collectAsState()
+
     var showNotificationsSheet by remember { mutableStateOf(false) }
+    var selectedTxFilter by remember { mutableStateOf("All") }
+    var selectedTxDetail by remember { mutableStateOf<TransactionRecord?>(null) }
 
     var isListening by remember { mutableStateOf(false) }
     var assistantResponse by remember { mutableStateOf("") }
     var isBalanceHidden by remember { mutableStateOf(false) }
     var selectedTimeframe by remember { mutableStateOf("1D") }
-    var selectedCurrency by remember { mutableStateOf("USD") } // "USD" or "INR"
+    var selectedCurrency by remember { mutableStateOf("USD") }
+
+    val balanceUsd = fiatBalanceInr / 83.50
 
     val ttsManager = remember { TextToSpeechManager(context) }
     val nlpEngine = remember { FinancialNlpEngine() }
@@ -99,7 +114,7 @@ fun HomeScreen(
                 val intent = nlpEngine.parseCommand(text)
                 when (intent) {
                     is VoiceIntent.CheckBalance -> {
-                        assistantResponse = "Your current portfolio balance is $14,250.80 USD."
+                        assistantResponse = "Your current portfolio balance is $${String.format("%.2f", balanceUsd)} USD."
                         ttsManager.speak(assistantResponse)
                     }
                     is VoiceIntent.CheckPrice -> {
@@ -182,6 +197,14 @@ fun HomeScreen(
         }
     }
 
+    val filteredTransactions = remember(transactions, selectedTxFilter) {
+        if (selectedTxFilter == "All") {
+            transactions
+        } else {
+            transactions.filter { it.category.equals(selectedTxFilter, ignoreCase = true) }
+        }
+    }
+
     Scaffold(
         containerColor = LightBackground,
         floatingActionButton = {
@@ -241,7 +264,6 @@ fun HomeScreen(
                             .clickable { onNavigateToProfile() }
                             .padding(4.dp)
                     ) {
-                        // Soft Aqua Avatar with User First Initial
                         Box(
                             modifier = Modifier
                                 .size(44.dp)
@@ -307,7 +329,6 @@ fun HomeScreen(
                             }
                         }
 
-                        // Bell Icon with Real-Time Unread Notification Badge
                         Box(
                             modifier = Modifier.clickable {
                                 showNotificationsSheet = true
@@ -426,7 +447,7 @@ fun HomeScreen(
                 }
             }
 
-            // 3. Total Portfolio Net Worth & Crisp Black Line Chart
+            // 3. Total Portfolio Net Worth
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -456,7 +477,6 @@ fun HomeScreen(
                         }
 
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            // USD / INR Currency Switcher Pill
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = Color(0xFFF3F4F6),
@@ -505,13 +525,12 @@ fun HomeScreen(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Dynamic Currency Conversion (USD 14,250.80 = INR 11,89,941.80)
                     val displayBalance = if (isBalanceHidden) {
                         "••••••••"
                     } else if (selectedCurrency == "USD") {
-                        "$14,250.80"
+                        "$${String.format("%.2f", balanceUsd)}"
                     } else {
-                        "₹11,89,941.80"
+                        "₹${String.format("%.2f", fiatBalanceInr)}"
                     }
 
                     Row(verticalAlignment = Alignment.Bottom) {
@@ -533,33 +552,26 @@ fun HomeScreen(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    // Timeframe Specific Growth/Loss Data
                     val timeframeData = when (selectedTimeframe) {
-                        "1D" -> TimeframeData("+$412.30 (+3.28%)", true, listOf(0.25f, 0.28f, 0.22f, 0.45f, 0.85f, 0.65f, 0.58f, 0.45f, 0.45f, 0.52f, 0.48f, 0.40f, 0.55f), BrandCharcoal)
-                        "1W" -> TimeframeData("+$1,110.20 (+8.45%)", true, listOf(0.15f, 0.20f, 0.35f, 0.50f, 0.42f, 0.68f, 0.75f, 0.82f), EmeraldGreen)
-                        "1M" -> TimeframeData("-$312.10 (-2.15%)", false, listOf(0.85f, 0.78f, 0.65f, 0.55f, 0.40f, 0.48f, 0.32f, 0.28f), CoralRed)
-                        "1Y" -> TimeframeData("+$4,250.00 (+42.60%)", true, listOf(0.10f, 0.25f, 0.30f, 0.45f, 0.60f, 0.52f, 0.80f, 0.95f), EmeraldGreen)
-                        else -> TimeframeData("+$7,780.00 (+120.50%)", true, listOf(0.05f, 0.12f, 0.28f, 0.40f, 0.58f, 0.72f, 0.88f, 1.00f), EmeraldGreen)
-                    }
-
-                    val formattedChangeText = if (selectedCurrency == "INR") {
-                        if (timeframeData.isPositive) "+₹34,427.05 (+3.28%)" else "-₹26,060.35 (-2.15%)"
-                    } else {
-                        timeframeData.changeText
+                        "1D" -> TimeframeData("+$0.00 (+0.00%)", true, listOf(0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f), BrandCharcoal)
+                        "1W" -> TimeframeData("+$0.00 (+0.00%)", true, listOf(0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f), EmeraldGreen)
+                        "1M" -> TimeframeData("+$0.00 (+0.00%)", true, listOf(0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f), EmeraldGreen)
+                        "1Y" -> TimeframeData("+$0.00 (+0.00%)", true, listOf(0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f), EmeraldGreen)
+                        else -> TimeframeData("+$0.00 (+0.00%)", true, listOf(0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f), EmeraldGreen)
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = if (timeframeData.isPositive) Icons.Default.NorthEast else Icons.Default.SouthEast,
+                            imageVector = Icons.Default.NorthEast,
                             contentDescription = null,
-                            tint = if (timeframeData.isPositive) EmeraldGreen else CoralRed,
+                            tint = EmeraldGreen,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
-                            text = formattedChangeText,
+                            text = timeframeData.changeText,
                             style = MaterialTheme.typography.labelLarge,
-                            color = if (timeframeData.isPositive) EmeraldGreen else CoralRed,
+                            color = EmeraldGreen,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -572,7 +584,6 @@ fun HomeScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Minimalist Dynamic Line Chart matching selected timeframe & growth/loss color
                     Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -605,7 +616,6 @@ fun HomeScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Timeframe Selectors
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -634,38 +644,33 @@ fun HomeScreen(
                 }
             }
 
-            // 4. Quick Actions Row (5 Circular Buttons: Add funds, Pay, Buy, Send, More)
+            // 4. Quick Actions Row
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Add Funds (Solid Black Circle)
                     QuickActionButtonSpec(
                         icon = Icons.Default.AccountBalance,
                         label = "Add funds",
                         isPrimary = true,
                         onClick = onNavigateToBankLinking
                     )
-                    // Pay
                     QuickActionButtonSpec(
                         icon = Icons.Default.QrCodeScanner,
                         label = "Pay",
                         onClick = onNavigateToScanner
                     )
-                    // Buy
                     QuickActionButtonSpec(
                         icon = Icons.Default.Add,
                         label = "Buy",
                         onClick = onNavigateToTrading
                     )
-                    // Send
                     QuickActionButtonSpec(
                         icon = Icons.Default.NorthEast,
                         label = "Send",
                         onClick = onNavigateToWallet
                     )
-                    // More
                     QuickActionButtonSpec(
                         icon = Icons.Default.MoreHoriz,
                         label = "More",
@@ -674,7 +679,105 @@ fun HomeScreen(
                 }
             }
 
-            // 5. Market Watchlist Ticker
+            // 5. Complete Real-Time Spending Analytics & Transaction History Feed
+            item {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Spending & Transaction Activity",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "Total Outflow: $${String.format("%.2f", totalMonthlySpentUsd)} USD",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextSecondary
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = LightSurfaceVariant,
+                            border = BorderStroke(1.dp, LightBorder)
+                        ) {
+                            Text(
+                                text = "${transactions.size} Records",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextMuted,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Category Filter Chips
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val categories = listOf("All", "Transfer", "Trading", "Banking", "Rewards")
+                        items(categories) { category ->
+                            val isSelected = selectedTxFilter == category
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedTxFilter = category },
+                                label = { Text(category) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = BrandCharcoal,
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (filteredTransactions.isEmpty()) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = LightSurface,
+                            border = BorderStroke(1.dp, LightBorder),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No transaction records found for '$selectedTxFilter'.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextMuted
+                                )
+                            }
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            filteredTransactions.take(8).forEach { tx ->
+                                TransactionRecordTile(
+                                    record = tx,
+                                    onClick = { selectedTxDetail = tx }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 6. Market Watchlist Ticker
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -705,7 +808,7 @@ fun HomeScreen(
                 }
             }
 
-            // 6. Feature Hero Banner (Dark Charcoal Card)
+            // 7. Feature Hero Banner
             item {
                 Card(
                     shape = RoundedCornerShape(24.dp),
@@ -751,7 +854,6 @@ fun HomeScreen(
 
                         Spacer(modifier = Modifier.width(12.dp))
 
-                        // Embossed Bank Icon Container
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = Color(0xFF27272A),
@@ -771,7 +873,7 @@ fun HomeScreen(
                 }
             }
 
-            // 7. Super-App Hub Grid Section
+            // 8. Super-App Hub Grid Section
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -808,7 +910,6 @@ fun HomeScreen(
                 }
             }
 
-            // Hub Grid Rows
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -883,64 +984,6 @@ fun HomeScreen(
                             accentColor = GoldAmber,
                             onClick = onNavigateToRewards
                         )
-                    }
-                }
-            }
-
-            // 8. Spending Bar Widget
-            item {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = LightSurface,
-                    border = BorderStroke(1.dp, LightBorder),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigateToBankLinking() }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Surface(
-                                shape = CircleShape,
-                                color = Color(0xFFF4F5F7),
-                                modifier = Modifier.size(38.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.PieChart,
-                                        contentDescription = null,
-                                        tint = TextPrimary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Spending",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TextPrimary
-                            )
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "$0.00",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TextPrimary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null,
-                                tint = TextMuted,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
                     }
                 }
             }
@@ -1040,6 +1083,221 @@ fun HomeScreen(
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // Transaction Detail Modal BottomSheet
+        selectedTxDetail?.let { record ->
+            ModalBottomSheet(
+                onDismissRequest = { selectedTxDetail = null },
+                containerColor = LightSurface
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Transaction Details",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        IconButton(onClick = { selectedTxDetail = null }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = TextSecondary)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = record.amountDisplay,
+                            style = MaterialTheme.typography.displaySmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (record.isDebit) CoralRed else EmeraldGreen
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFD1FAE5)
+                        ) {
+                            Text(
+                                text = record.status,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = EmeraldGreen,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = LightSurfaceVariant,
+                        border = BorderStroke(1.dp, LightBorder),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Title", style = MaterialTheme.typography.labelMedium, color = TextMuted)
+                                Text(record.title, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            }
+                            HorizontalDivider(color = LightBorder)
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Category", style = MaterialTheme.typography.labelMedium, color = TextMuted)
+                                Text(record.category, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            }
+                            HorizontalDivider(color = LightBorder)
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Description", style = MaterialTheme.typography.labelMedium, color = TextMuted)
+                                Text(record.description, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = TextSecondary)
+                            }
+                            HorizontalDivider(color = LightBorder)
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Timestamp", style = MaterialTheme.typography.labelMedium, color = TextMuted)
+                                Text(
+                                    SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(record.timestamp)),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextSecondary
+                                )
+                            }
+                            HorizontalDivider(color = LightBorder)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Reference ID", style = MaterialTheme.typography.labelMedium, color = TextMuted)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        record.referenceId,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+                                    IconButton(
+                                        onClick = { clipboardManager.setText(AnnotatedString(record.referenceId)) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = EmeraldGreen, modifier = Modifier.size(14.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TransactionRecordTile(
+    record: TransactionRecord,
+    onClick: () -> Unit
+) {
+    val icon = when (record.type) {
+        TransactionType.UPI_SEND, TransactionType.UPI_RECEIVE -> Icons.Default.AccountBalance
+        TransactionType.CRYPTO_SEND, TransactionType.CRYPTO_RECEIVE -> Icons.Default.NorthEast
+        TransactionType.SPOT_BUY, TransactionType.SPOT_SELL -> Icons.Default.BarChart
+        TransactionType.BANK_DEPOSIT -> Icons.Default.CreditCard
+        TransactionType.REWARD_CLAIM -> Icons.Default.EmojiEvents
+    }
+
+    val iconColor = when (record.category) {
+        "Trading" -> ElectricViolet
+        "Banking" -> CyberCyan
+        "Rewards" -> GoldAmber
+        else -> EmeraldGreen
+    }
+
+    val formattedTime = remember(record.timestamp) {
+        SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()).format(Date(record.timestamp))
+    }
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = LightSurface,
+        border = BorderStroke(1.dp, LightBorder),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Surface(
+                    shape = CircleShape,
+                    color = iconColor.copy(alpha = 0.12f),
+                    modifier = Modifier.size(42.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = iconColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column {
+                    Text(
+                        text = record.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = "$formattedTime • ${record.category}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = record.amountDisplay,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = if (record.isDebit) TextPrimary else EmeraldGreen
+                )
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color(0xFFD1FAE5)
+                ) {
+                    Text(
+                        text = record.status,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = EmeraldGreen,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                    )
                 }
             }
         }

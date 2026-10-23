@@ -7,12 +7,11 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.kryptup.kryptup.security.BiometricPromptManager
+import com.kryptup.kryptup.ui.screens.security.PinSetupDialog
+import com.kryptup.kryptup.ui.screens.security.PinVerificationDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,14 +24,12 @@ fun SendScreen(
     var amount by remember { mutableStateOf("") }
     var selectedToken by remember { mutableStateOf("ETH") }
     
+    var showPinSetupDialog by remember { mutableStateOf(false) }
+    var showPinVerificationDialog by remember { mutableStateOf(false) }
+
     val tokens by viewModel.tokens.collectAsState()
     val isLoading by viewModel.isSending.collectAsState()
     val status by viewModel.transactionStatus.collectAsState()
-
-    val context = LocalContext.current
-    val biometricPromptManager = remember { 
-        BiometricPromptManager(context as FragmentActivity) 
-    }
 
     Scaffold(
         topBar = {
@@ -94,16 +91,11 @@ fun SendScreen(
 
             Button(
                 onClick = { 
-                    biometricPromptManager.showBiometricPrompt(
-                        title = "Authorize Transaction",
-                        subtitle = "Confirm sending $amount $selectedToken",
-                        onSuccess = {
-                            viewModel.sendTransaction(toAddress, amount, selectedToken)
-                        },
-                        onError = {
-                            // Handle error - maybe show a snackbar or message
-                        }
-                    )
+                    if (!viewModel.pinSecurityManager.isPinSet()) {
+                        showPinSetupDialog = true
+                    } else {
+                        showPinVerificationDialog = true
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = toAddress.isNotEmpty() && amount.isNotEmpty() && !isLoading
@@ -115,5 +107,29 @@ fun SendScreen(
                 }
             }
         }
+    }
+
+    if (showPinSetupDialog) {
+        PinSetupDialog(
+            pinSecurityManager = viewModel.pinSecurityManager,
+            onDismiss = { showPinSetupDialog = false },
+            onPinSetSuccess = {
+                showPinSetupDialog = false
+                showPinVerificationDialog = true
+            }
+        )
+    }
+
+    if (showPinVerificationDialog) {
+        PinVerificationDialog(
+            title = "Authorize Send Transaction",
+            transactionDetails = "Sending $amount $selectedToken to ${toAddress.take(8)}...",
+            pinSecurityManager = viewModel.pinSecurityManager,
+            onDismiss = { showPinVerificationDialog = false },
+            onPinVerified = {
+                showPinVerificationDialog = false
+                viewModel.sendTransaction(toAddress, amount, selectedToken)
+            }
+        )
     }
 }

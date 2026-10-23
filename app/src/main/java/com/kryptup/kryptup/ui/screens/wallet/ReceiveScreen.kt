@@ -27,8 +27,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.kryptup.kryptup.ui.theme.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,13 +36,15 @@ fun ReceiveScreen(
 ) {
     val clipboardManager = LocalClipboardManager.current
     val currentUser = remember { FirebaseAuth.getInstance().currentUser }
+    val uid = currentUser?.uid ?: ""
     val userName = currentUser?.displayName.takeIf { !it.isNullOrEmpty() } ?: "KryptUp Investor"
     val userEmail = currentUser?.email ?: "user@kryptup.com"
 
     val sanitized = userName.lowercase().replace("[^a-z0-9]".toRegex(), "").ifEmpty { "user" }
-    val upiId = "$sanitized@kryptup"
+    val uidSuffix = uid.take(4).lowercase()
+    val upiId = "$sanitized$uidSuffix@kryptup"
 
-    var selectedTab by remember { mutableStateOf(0) } // 0: UPI ID, 1: Crypto Address
+    var selectedTab by remember { mutableIntStateOf(0) } // 0: UPI ID, 1: Crypto Address
 
     val qrContent = if (selectedTab == 0) {
         "upi://pay?pa=$upiId&pn=${userName.replace(" ", "%20")}&cu=INR"
@@ -52,7 +52,6 @@ fun ReceiveScreen(
         address.ifEmpty { "0x0000000000000000000000000000000000000000" }
     }
 
-    // Generate QR Code with remember fallback
     val qrBitmap = remember(qrContent) {
         generateQrCode(qrContent)
     }
@@ -146,10 +145,9 @@ fun ReceiveScreen(
                                 )
                             }
                             Text(
-                                text = if (selectedTab == 0) "UPI Balance: ₹10,000.00 INR" else userEmail,
+                                text = userEmail,
                                 style = MaterialTheme.typography.bodySmall,
-                                fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedTab == 0) EmeraldGreen else TextSecondary
+                                color = TextSecondary
                             )
                         }
                     }

@@ -28,8 +28,9 @@ import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.kryptup.kryptup.ui.screens.security.PinSetupDialog
+import com.kryptup.kryptup.ui.screens.security.PinVerificationDialog
 import com.kryptup.kryptup.ui.theme.*
 
 data class BankOption(val name: String, val code: String, val color: Color)
@@ -54,6 +55,12 @@ fun BankLinkingScreen(
     var cvv by remember { mutableStateOf("") }
     var showOtpDialog by remember { mutableStateOf(false) }
     var selectedInstantBank by remember { mutableStateOf<BankOption?>(null) }
+    
+    var pendingOtp by remember { mutableStateOf<String?>(null) }
+    var pendingBankName by remember { mutableStateOf<String?>(null) }
+    var showPinSetupDialog by remember { mutableStateOf(false) }
+    var showPinVerificationDialog by remember { mutableStateOf(false) }
+
     val scrollState = rememberScrollState()
 
     val isVerifying by viewModel.isVerifying.collectAsState()
@@ -152,7 +159,15 @@ fun BankLinkingScreen(
             if (selectedInstantBank != null) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Button(
-                    onClick = { viewModel.verifyOtp("123456") },
+                    onClick = { 
+                        pendingOtp = "123456"
+                        pendingBankName = selectedInstantBank!!.name
+                        if (!viewModel.pinSecurityManager.isPinSet()) {
+                            showPinSetupDialog = true
+                        } else {
+                            showPinVerificationDialog = true
+                        }
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = selectedInstantBank!!.color, contentColor = Color.White),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth().height(48.dp)
@@ -266,7 +281,38 @@ fun BankLinkingScreen(
         OtpVerificationDialog(
             onDismiss = { showOtpDialog = false },
             onConfirm = { otp ->
-                viewModel.verifyOtp(otp)
+                showOtpDialog = false
+                pendingOtp = otp
+                pendingBankName = "Card Ending in ${cardNumber.takeLast(4)}"
+                if (!viewModel.pinSecurityManager.isPinSet()) {
+                    showPinSetupDialog = true
+                } else {
+                    showPinVerificationDialog = true
+                }
+            }
+        )
+    }
+
+    if (showPinSetupDialog) {
+        PinSetupDialog(
+            pinSecurityManager = viewModel.pinSecurityManager,
+            onDismiss = { showPinSetupDialog = false },
+            onPinSetSuccess = {
+                showPinSetupDialog = false
+                showPinVerificationDialog = true
+            }
+        )
+    }
+
+    if (showPinVerificationDialog) {
+        PinVerificationDialog(
+            title = "Authorize Bank Account Link",
+            transactionDetails = "Link ${pendingBankName ?: "Bank Account"} to KryptUp",
+            pinSecurityManager = viewModel.pinSecurityManager,
+            onDismiss = { showPinVerificationDialog = false },
+            onPinVerified = {
+                showPinVerificationDialog = false
+                pendingOtp?.let { viewModel.verifyOtp(it) }
             }
         )
     }

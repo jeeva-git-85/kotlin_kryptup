@@ -3,6 +3,7 @@ package com.kryptup.kryptup.ui.screens.banking
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kryptup.kryptup.data.repository.BankingRepository
+import com.kryptup.kryptup.security.PinSecurityManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,7 +12,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class BankingViewModel @Inject constructor(
-    private val repository: BankingRepository
+    private val repository: BankingRepository,
+    val pinSecurityManager: PinSecurityManager
 ) : ViewModel() {
 
     private val _isVerifying = MutableStateFlow(false)

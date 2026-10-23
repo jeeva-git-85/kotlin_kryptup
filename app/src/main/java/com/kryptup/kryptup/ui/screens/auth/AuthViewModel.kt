@@ -58,6 +58,24 @@ class AuthViewModel @Inject constructor(
         _authState.value = AuthState.Idle
     }
 
+    fun sendPasswordResetEmail(email: String) {
+        val cleanEmail = email.trim()
+        if (cleanEmail.isBlank()) {
+            _authState.value = AuthState.Error("Please enter your email address")
+            return
+        }
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            repository.sendPasswordResetEmail(cleanEmail)
+                .onSuccess {
+                    _authState.value = AuthState.Error("Password reset link sent to $cleanEmail!")
+                }
+                .onFailure {
+                    _authState.value = AuthState.Error(it.message ?: "Failed to send reset email")
+                }
+        }
+    }
+
     fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading

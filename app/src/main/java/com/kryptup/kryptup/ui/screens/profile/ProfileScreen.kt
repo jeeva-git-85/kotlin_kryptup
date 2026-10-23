@@ -24,10 +24,10 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import com.kryptup.kryptup.ui.screens.security.PinSetupDialog
 import com.kryptup.kryptup.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,10 +42,14 @@ fun ProfileScreen(
     val clipboardManager = LocalClipboardManager.current
     val scrollState = rememberScrollState()
 
+    var showPinSetupDialog by remember { mutableStateOf(false) }
+    var isPinSet by remember { mutableStateOf(viewModel.pinSecurityManager.isPinSet()) }
+    var isBiometricEnabled by remember { mutableStateOf(viewModel.pinSecurityManager.isBiometricEnabled()) }
+
     val name = user?.displayName?.ifEmpty { "KryptUp Investor" } ?: "KryptUp Investor"
     val email = user?.email?.ifEmpty { "user@kryptup.com" } ?: "user@kryptup.com"
     val upiId = user?.upiId?.ifEmpty { "investor@kryptup" } ?: "investor@kryptup"
-    val fiatBalance = user?.fiatBalanceInr ?: 10000.00
+    val fiatBalance = user?.fiatBalanceInr ?: 0.00
     val points = user?.points ?: 0
 
     val upiQrContent = "upi://pay?pa=$upiId&pn=${name.replace(" ", "%20")}&cu=INR"
@@ -166,6 +170,106 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Security & Transaction Security Section
+            Text(
+                text = "Transaction Security & Authentication",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = TextMuted,
+                modifier = Modifier
+                    .align(Alignment.Start)
+                    .padding(bottom = 8.dp)
+            )
+
+            // Security Card
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = LightSurface,
+                border = BorderStroke(1.dp, LightBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = CircleShape,
+                                color = EmeraldGreen.copy(alpha = 0.12f),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = null,
+                                        tint = EmeraldGreen,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(text = "Transaction PIN", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                                Text(
+                                    text = if (isPinSet) "PIN Configured" else "PIN Not Set",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isPinSet) EmeraldGreen else CoralRed
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = { showPinSetupDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = BrandCharcoal),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(if (isPinSet) "Change PIN" else "Set PIN", fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = LightBorder)
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Face,
+                                contentDescription = null,
+                                tint = CyberCyan,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(text = "Facial Recognition / Biometrics", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                Text(text = "Use Face ID / Fingerprint for transactions", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                            }
+                        }
+
+                        Switch(
+                            checked = isBiometricEnabled,
+                            onCheckedChange = { enabled ->
+                                isBiometricEnabled = enabled
+                                viewModel.pinSecurityManager.setBiometricEnabled(enabled)
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = androidx.compose.ui.graphics.Color.White,
+                                checkedTrackColor = EmeraldGreen
+                            )
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
             // Account Financial Details Section
             Text(
                 text = "Financial Accounts & Credentials",
@@ -181,7 +285,7 @@ fun ProfileScreen(
             ProfileDetailTile(
                 title = "Assigned UPI ID",
                 value = upiId,
-                subtitle = "Simulated Balance: ₹${String.format("%.2f", fiatBalance)} INR",
+                subtitle = "Available Balance: ₹${String.format("%.2f", fiatBalance)} INR",
                 icon = Icons.Default.AccountBalance,
                 accentColor = CyberCyan,
                 onCopy = { clipboardManager.setText(AnnotatedString(upiId)) }
@@ -230,6 +334,18 @@ fun ProfileScreen(
                 Text("Sign Out of KryptUp", fontWeight = FontWeight.Bold)
             }
         }
+    }
+
+    if (showPinSetupDialog) {
+        PinSetupDialog(
+            pinSecurityManager = viewModel.pinSecurityManager,
+            onDismiss = { showPinSetupDialog = false },
+            onPinSetSuccess = {
+                showPinSetupDialog = false
+                isPinSet = viewModel.pinSecurityManager.isPinSet()
+                isBiometricEnabled = viewModel.pinSecurityManager.isBiometricEnabled()
+            }
+        )
     }
 }
 

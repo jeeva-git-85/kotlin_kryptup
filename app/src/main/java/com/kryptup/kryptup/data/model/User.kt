@@ -5,7 +5,7 @@ data class User(
     val email: String = "",
     val displayName: String = "",
     val upiId: String = "",
-    val fiatBalanceInr: Double = 10000.00,
+    val fiatBalanceInr: Double = 0.00,
     val profileImageUrl: String = "",
     val points: Int = 0,
     val createdAt: Long = System.currentTimeMillis()

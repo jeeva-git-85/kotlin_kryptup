@@ -54,6 +54,7 @@ fun LoginScreen(
         onGoogleLoginClick = {
             launcher.launch(googleSignInClient.signInIntent)
         },
+        onForgotPasswordClick = { email -> viewModel.sendPasswordResetEmail(email) },
         onResetState = { viewModel.resetState() }
     )
 }
@@ -65,16 +66,53 @@ fun LoginScreenContent(
     authState: AuthState,
     onLoginClick: (String, String) -> Unit,
     onGoogleLoginClick: () -> Unit,
+    onForgotPasswordClick: (String) -> Unit,
     onResetState: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(authState) {
         if (authState is AuthState.Success) {
             onLoginSuccess()
             onResetState()
         }
+    }
+
+    if (showForgotPasswordDialog) {
+        var resetEmail by remember { mutableStateOf(email) }
+        AlertDialog(
+            onDismissRequest = { showForgotPasswordDialog = false },
+            title = { Text("Reset Password") },
+            text = {
+                Column {
+                    Text("Enter your email address and we'll send you a password reset link.")
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = resetEmail,
+                        onValueChange = { resetEmail = it },
+                        label = { Text("Email") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onForgotPasswordClick(resetEmail.trim())
+                        showForgotPasswordDialog = false
+                    }
+                ) {
+                    Text("Send Reset Link")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showForgotPasswordDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Column(
@@ -107,7 +145,16 @@ fun LoginScreenContent(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(onClick = { showForgotPasswordDialog = true }) {
+                Text("Forgot Password?")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (authState is AuthState.Loading) {
             CircularProgressIndicator()
@@ -154,6 +201,7 @@ fun LoginScreenPreview() {
             authState = AuthState.Idle,
             onLoginClick = { _, _ -> },
             onGoogleLoginClick = {},
+            onForgotPasswordClick = {},
             onResetState = {}
         )
     }

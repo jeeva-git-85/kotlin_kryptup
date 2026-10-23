@@ -6,20 +6,21 @@ import com.google.firebase.auth.FirebaseAuth
 import com.kryptup.kryptup.data.model.User
 import com.kryptup.kryptup.data.repository.AuthRepository
 import com.kryptup.kryptup.data.wallet.WalletManager
+import com.kryptup.kryptup.security.PinSecurityManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val walletManager: WalletManager,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    val pinSecurityManager: PinSecurityManager
 ) : ViewModel() {
 
     private val _user = MutableStateFlow<User?>(null)
@@ -35,28 +36,27 @@ class ProfileViewModel @Inject constructor(
     fun loadProfile() {
         viewModelScope.launch(Dispatchers.IO) {
             val current = auth.currentUser
+            val uid = current?.uid ?: ""
             val defaultDisplayName = current?.displayName.takeIf { !it.isNullOrEmpty() }
                 ?: current?.email?.substringBefore("@")
                 ?: "KryptUp Investor"
             val defaultEmail = current?.email ?: "user@kryptup.com"
             val sanitized = defaultDisplayName.lowercase().replace("[^a-z0-9]".toRegex(), "").ifEmpty { "user" }
+            val uidSuffix = uid.take(4).lowercase()
 
-            // Instantly pre-populate initial fallback state so UI doesn't flicker/jump
             _user.value = User(
-                uid = current?.uid ?: "",
+                uid = uid,
                 email = defaultEmail,
                 displayName = defaultDisplayName,
-                upiId = "$sanitized@kryptup",
-                fiatBalanceInr = 10000.00
+                upiId = "$sanitized$uidSuffix@kryptup",
+                fiatBalanceInr = 0.00
             )
 
-            // Fetch full profile from Firestore
             val userProfile = authRepository.getCurrentUserProfile()
             if (userProfile != null) {
                 _user.value = userProfile
             }
 
-            // Heavy Web3j BIP-44 key derivation running safely on IO thread
             val savedMnemonic = walletManager.getMnemonic()
             if (savedMnemonic != null) {
                 val addr = walletManager.createWallet(savedMnemonic, "password123")

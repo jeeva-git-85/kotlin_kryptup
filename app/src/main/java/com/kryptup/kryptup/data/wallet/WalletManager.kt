@@ -2,14 +2,12 @@ package com.kryptup.kryptup.data.wallet
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.google.firebase.auth.FirebaseAuth
 import com.kryptup.kryptup.security.CryptoManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.web3j.crypto.Bip32ECKeyPair
-import org.web3j.crypto.Bip39Wallet
 import org.web3j.crypto.Credentials
-import org.web3j.crypto.Keys
 import org.web3j.crypto.MnemonicUtils
-import org.web3j.crypto.WalletUtils
 import java.io.File
 import java.security.SecureRandom
 import javax.inject.Inject
@@ -19,10 +17,10 @@ import javax.inject.Singleton
 class WalletManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val cryptoManager: CryptoManager,
-    private val sharedPreferences: SharedPreferences
+    private val sharedPreferences: SharedPreferences,
+    private val auth: FirebaseAuth
 ) {
     private val walletDir = File(context.filesDir, "wallets")
-    private val MNEMONIC_KEY = "encrypted_mnemonic"
 
     init {
         if (!walletDir.exists()) {
@@ -30,12 +28,17 @@ class WalletManager @Inject constructor(
         }
     }
 
+    private fun getMnemonicKey(): String {
+        val uid = auth.currentUser?.uid ?: "default_user"
+        return "encrypted_mnemonic_$uid"
+    }
+
     fun saveMnemonic(mnemonic: String) {
-        sharedPreferences.edit().putString(MNEMONIC_KEY, mnemonic).apply()
+        sharedPreferences.edit().putString(getMnemonicKey(), mnemonic).apply()
     }
 
     fun getMnemonic(): String? {
-        return sharedPreferences.getString(MNEMONIC_KEY, null)
+        return sharedPreferences.getString(getMnemonicKey(), null)
     }
 
     fun hasWallet(): Boolean {
@@ -43,8 +46,7 @@ class WalletManager @Inject constructor(
     }
 
     fun clearWallet() {
-        sharedPreferences.edit().remove(MNEMONIC_KEY).apply()
-        walletDir.listFiles()?.forEach { it.delete() }
+        sharedPreferences.edit().remove(getMnemonicKey()).apply()
     }
 
     fun generateMnemonic(): String {
@@ -68,13 +70,10 @@ class WalletManager @Inject constructor(
         val derivedKeyPair = Bip32ECKeyPair.deriveKeyPair(masterKeyPair, path)
         val credentials = Credentials.create(derivedKeyPair)
         
-        // Save as V3 wallet file for persistence (optional if mnemonic is saved securely)
-        val walletFileName = WalletUtils.generateWalletFile(pass, derivedKeyPair, walletDir, false)
         return credentials.address
     }
 
     fun importWallet(mnemonic: String, pass: String): String {
-        // Importing is essentially deriving from the mnemonic
         return createWallet(mnemonic, pass)
     }
 

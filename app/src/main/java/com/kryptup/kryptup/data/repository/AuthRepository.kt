@@ -42,6 +42,15 @@ class AuthRepository @Inject constructor(
         awaitClose { auth.removeAuthStateListener(listener) }
     }
 
+    private fun parseAuthError(e: Exception): Exception {
+        val msg = e.localizedMessage ?: ""
+        return if (msg.contains("unexpected end of stream") || msg.contains("IOException") || msg.contains("internal error")) {
+            Exception("Network connection interrupted. Please try again.")
+        } else {
+            e
+        }
+    }
+
     suspend fun login(email: String, pass: String): Result<FirebaseUser> {
         return try {
             val result = auth.signInWithEmailAndPassword(email, pass).await()
@@ -49,7 +58,7 @@ class AuthRepository @Inject constructor(
                 Result.success(it)
             } ?: Result.failure(Exception("Login failed: User is null"))
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(parseAuthError(e))
         }
     }
 
@@ -73,20 +82,40 @@ class AuthRepository @Inject constructor(
             val firebaseUser = result.user ?: throw Exception("Registration failed: User is null")
             
             val sanitized = name.lowercase().replace("[^a-z0-9]".toRegex(), "").ifEmpty { "user" }
-            val upiId = "$sanitized@kryptup"
+            val uidSuffix = firebaseUser.uid.take(4).lowercase()
+            val upiId = "$sanitized$uidSuffix@kryptup"
 
             val user = User(
                 uid = firebaseUser.uid,
                 email = email,
                 displayName = name,
                 upiId = upiId,
-                fiatBalanceInr = 10000.00
+                fiatBalanceInr = 0.00
             )
             firestore.collection("users").document(firebaseUser.uid).set(user).await()
             
             Result.success(firebaseUser)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(parseAuthError(e))
+        }
+    }
+
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
+        val cleanEmail = email.trim()
+        if (cleanEmail.isEmpty() || !cleanEmail.contains("@") || !cleanEmail.contains(".")) {
+            return Result.failure(Exception("Please enter a valid email address (e.g. user@gmail.com)"))
+        }
+        return try {
+            auth.sendPasswordResetEmail(cleanEmail).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            // Retry once on network glitch
+            try {
+                auth.sendPasswordResetEmail(cleanEmail).await()
+                Result.success(Unit)
+            } catch (retryEx: Exception) {
+                Result.failure(parseAuthError(retryEx))
+            }
         }
     }
 
@@ -100,19 +129,19 @@ class AuthRepository @Inject constructor(
             val result = auth.signInWithCredential(credential).await()
             val firebaseUser = result.user ?: throw Exception("Google sign in failed: User is null")
             
-            // Check if user exists in Firestore, if not create
             val userDoc = firestore.collection("users").document(firebaseUser.uid).get().await()
             if (!userDoc.exists()) {
                 val displayName = firebaseUser.displayName ?: "User"
                 val sanitized = displayName.lowercase().replace("[^a-z0-9]".toRegex(), "").ifEmpty { "user" }
-                val upiId = "$sanitized@kryptup"
+                val uidSuffix = firebaseUser.uid.take(4).lowercase()
+                val upiId = "$sanitized$uidSuffix@kryptup"
 
                 val user = User(
                     uid = firebaseUser.uid,
                     email = firebaseUser.email ?: "",
                     displayName = displayName,
                     upiId = upiId,
-                    fiatBalanceInr = 10000.00
+                    fiatBalanceInr = 0.00
                 )
                 firestore.collection("users").document(firebaseUser.uid).set(user).await()
             }

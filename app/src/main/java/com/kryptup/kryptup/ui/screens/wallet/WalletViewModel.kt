@@ -2,23 +2,29 @@ package com.kryptup.kryptup.ui.screens.wallet
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kryptup.kryptup.data.model.Token
+import com.kryptup.kryptup.data.model.TransactionRecord
+import com.kryptup.kryptup.data.model.TransactionType
+import com.kryptup.kryptup.data.model.WalletTransaction
 import com.kryptup.kryptup.data.repository.EthereumRepository
+import com.kryptup.kryptup.data.repository.TransactionRepository
 import com.kryptup.kryptup.data.wallet.WalletManager
+import com.kryptup.kryptup.security.PinSecurityManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
+import java.util.UUID
 import javax.inject.Inject
-
-import com.kryptup.kryptup.data.model.Token
-import com.kryptup.kryptup.data.model.WalletTransaction
 
 @HiltViewModel
 class WalletViewModel @Inject constructor(
     private val walletManager: WalletManager,
-    private val ethereumRepository: EthereumRepository
+    private val ethereumRepository: EthereumRepository,
+    val pinSecurityManager: PinSecurityManager,
+    private val transactionRepository: TransactionRepository
 ) : ViewModel() {
 
     private val _mnemonic = MutableStateFlow("")
@@ -46,7 +52,7 @@ class WalletViewModel @Inject constructor(
         val savedMnemonic = walletManager.getMnemonic()
         if (savedMnemonic != null) {
             _mnemonic.value = savedMnemonic
-            createWallet("password123") // Using a default pass for demo, should be user-provided
+            createWallet("password123")
         }
     }
 
@@ -80,7 +86,6 @@ class WalletViewModel @Inject constructor(
 
                 _transactions.value = ethereumRepository.getTransactionHistory(currentAddress)
                 
-                // Mock USD conversion
                 val ethPrice = BigDecimal("2500")
                 val usdtPrice = BigDecimal("1")
                 _totalBalanceUsd.value = ethBalance.multiply(ethPrice).add(usdtBalance.multiply(usdtPrice))
@@ -118,6 +123,21 @@ class WalletViewModel @Inject constructor(
                     )
                 }
                 _transactionStatus.value = "Success! Hash: $hash"
+
+                // Log in TransactionRepository
+                transactionRepository.recordTransaction(
+                    TransactionRecord(
+                        type = TransactionType.CRYPTO_SEND,
+                        title = "Sent $amountStr $symbol",
+                        description = "Transfer to ${toAddress.take(8)}...",
+                        amountDisplay = "-$amountStr $symbol",
+                        amountValue = amount.toDouble(),
+                        isDebit = true,
+                        category = "Transfer",
+                        referenceId = hash.take(12)
+                    )
+                )
+
                 refreshBalances()
             } catch (e: Exception) {
                 _transactionStatus.value = "Error: ${e.message}"
