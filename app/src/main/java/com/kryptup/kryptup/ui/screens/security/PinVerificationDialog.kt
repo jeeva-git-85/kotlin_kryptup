@@ -27,6 +27,7 @@ import androidx.fragment.app.FragmentActivity
 import com.kryptup.kryptup.security.BiometricPaymentSecurityManager
 import com.kryptup.kryptup.security.BiometricStatus
 import com.kryptup.kryptup.security.PinSecurityManager
+import com.kryptup.kryptup.security.PinVerificationResult
 import com.kryptup.kryptup.ui.theme.*
 
 @Composable
@@ -215,14 +216,28 @@ fun PinVerificationDialog(
                     onDigitClick = { digit ->
                         if (enteredPin.length < 4) {
                             errorMessage = null
+                            if (pinSecurityManager.isLockedOut()) {
+                                val secs = pinSecurityManager.getRemainingLockoutTimeSeconds()
+                                errorMessage = "PIN locked due to 5 failed attempts. Try again in ${secs}s."
+                                enteredPin = ""
+                                return@NumericKeypad
+                            }
                             val newPin = enteredPin + digit
                             enteredPin = newPin
                             if (newPin.length == 4) {
-                                if (pinSecurityManager.verifyPin(newPin)) {
-                                    onPinVerified()
-                                } else {
-                                    errorMessage = "Incorrect PIN. Please try again."
-                                    enteredPin = ""
+                                when (pinSecurityManager.verifyPinResult(newPin)) {
+                                    PinVerificationResult.SUCCESS -> {
+                                        onPinVerified()
+                                    }
+                                    PinVerificationResult.LOCKED_OUT -> {
+                                        val secs = pinSecurityManager.getRemainingLockoutTimeSeconds()
+                                        errorMessage = "5 failed attempts. PIN locked for 15 minutes (${secs}s remaining)."
+                                        enteredPin = ""
+                                    }
+                                    PinVerificationResult.INVALID_PIN -> {
+                                        errorMessage = "Incorrect PIN. Please try again."
+                                        enteredPin = ""
+                                    }
                                 }
                             }
                         }

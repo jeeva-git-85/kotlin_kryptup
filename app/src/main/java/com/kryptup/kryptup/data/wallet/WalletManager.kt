@@ -55,7 +55,7 @@ class WalletManager @Inject constructor(
         return MnemonicUtils.generateMnemonic(initialEntropy)
     }
 
-    fun createWallet(mnemonic: String, pass: String): String {
+    fun createWallet(mnemonic: String, pass: String = ""): String {
         val seed = MnemonicUtils.generateSeed(mnemonic, pass)
         val masterKeyPair = Bip32ECKeyPair.generateKeyPair(seed)
         
@@ -73,11 +73,11 @@ class WalletManager @Inject constructor(
         return credentials.address
     }
 
-    fun importWallet(mnemonic: String, pass: String): String {
+    fun importWallet(mnemonic: String, pass: String = ""): String {
         return createWallet(mnemonic, pass)
     }
 
-    fun getCredentialsFromMnemonic(mnemonic: String, pass: String): Credentials {
+    fun getCredentialsFromMnemonic(mnemonic: String, pass: String = ""): Credentials {
         val seed = MnemonicUtils.generateSeed(mnemonic, pass)
         val masterKeyPair = Bip32ECKeyPair.generateKeyPair(seed)
         val path = intArrayOf(

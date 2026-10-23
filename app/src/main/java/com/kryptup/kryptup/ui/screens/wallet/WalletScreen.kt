@@ -142,7 +142,7 @@ fun WalletScreen(
                             Spacer(modifier = Modifier.height(16.dp))
 
                             Button(
-                                onClick = { viewModel.createWallet("password123") },
+                                onClick = { viewModel.createWallet("") },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(containerColor = CyberCyan, contentColor = DarkBackground)
                             ) {

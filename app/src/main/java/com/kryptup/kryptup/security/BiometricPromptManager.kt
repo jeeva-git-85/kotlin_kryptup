@@ -13,20 +13,36 @@ class BiometricPromptManager(
         title: String,
         subtitle: String,
         onSuccess: (BiometricPrompt.AuthenticationResult) -> Unit,
-        onError: () -> Unit
+        onError: (errorCode: Int, errString: CharSequence) -> Unit,
+        onNotAvailable: () -> Unit
     ) {
         val manager = BiometricManager.from(activity)
-        val authenticators = if (Build.VERSION.SDK_INT >= 30) {
+        val hasDeviceCredential = Build.VERSION.SDK_INT >= 30
+        
+        val authenticators = if (hasDeviceCredential) {
             BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
         } else {
             BiometricManager.Authenticators.BIOMETRIC_STRONG
         }
 
-        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+        val status = manager.canAuthenticate(authenticators)
+        if (status != BiometricManager.BIOMETRIC_SUCCESS) {
+            // Hardware or enrollment not available on device - allow fallback
+            onNotAvailable()
+            return
+        }
+
+        val builder = BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)
             .setSubtitle(subtitle)
             .setAllowedAuthenticators(authenticators)
-            .build()
+
+        // API 27-29 or whenever DEVICE_CREDENTIAL is not set requires setNegativeButtonText
+        if (!hasDeviceCredential) {
+            builder.setNegativeButtonText("Cancel")
+        }
+
+        val promptInfo = builder.build()
 
         val executor = ContextCompat.getMainExecutor(activity)
         val prompt = BiometricPrompt(activity, executor, object : BiometricPrompt.AuthenticationCallback() {
@@ -37,12 +53,12 @@ class BiometricPromptManager(
 
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                 super.onAuthenticationError(errorCode, errString)
-                onError()
+                onError(errorCode, errString)
             }
 
             override fun onAuthenticationFailed() {
                 super.onAuthenticationFailed()
-                onError()
+                // Do NOT call onError here; system prompt stays active for retry
             }
         })
 

@@ -17,9 +17,9 @@ class WalletManagerTest {
     }
 
     @Test
-    fun deriveAddress_isDeterministic() {
+    fun deriveAddress_isDeterministicWithEmptyPassphrase() {
         val mnemonic = "candy maple cake sugar honey pink sugar honey pink sugar honey pizza"
-        val seed = MnemonicUtils.generateSeed(mnemonic, "password123")
+        val seed = MnemonicUtils.generateSeed(mnemonic, "")
         val masterKeyPair = Bip32ECKeyPair.generateKeyPair(seed)
         
         val path = intArrayOf(
@@ -33,5 +33,8 @@ class WalletManagerTest {
         val credentials = Credentials.create(derivedKeyPair)
 
         assertNotNull(credentials.address)
+        // Verify standard Ethereum BIP-44 address format
+        assert(credentials.address.startsWith("0x"))
+        assertEquals(42, credentials.address.length)
     }
 }

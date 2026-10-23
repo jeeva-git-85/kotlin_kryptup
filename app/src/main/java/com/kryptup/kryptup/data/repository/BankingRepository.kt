@@ -32,25 +32,35 @@ class BankingRepository @Inject constructor(
             val currentUid = auth.currentUser?.uid
             if (currentUid != null) {
                 try {
-                    val initialDeposit = 10000.00
-                    firestore.collection("users").document(currentUid)
-                        .update("fiatBalanceInr", FieldValue.increment(initialDeposit))
-                        .await()
+                    val userDocRef = firestore.collection("users").document(currentUid)
+                    val snapshot = userDocRef.get().await()
+                    
+                    // Enforce once-per-user initial bank deposit bonus
+                    val hasAlreadyReceived = snapshot.getBoolean("hasReceivedInitialDeposit") ?: false
+                    if (!hasAlreadyReceived) {
+                        val initialDeposit = 10000.00
+                        userDocRef.update(
+                            mapOf(
+                                "fiatBalanceInr" to FieldValue.increment(initialDeposit),
+                                "hasReceivedInitialDeposit" to true
+                            )
+                        ).await()
 
-                    transactionRepository.recordTransaction(
-                        TransactionRecord(
-                            type = TransactionType.BANK_DEPOSIT,
-                            title = "Bank Account Linked & Initial Deposit",
-                            description = "Initial simulated bank balance added",
-                            amountDisplay = "+₹10,000.00 INR",
-                            amountValue = initialDeposit,
-                            isDebit = false,
-                            category = "Banking",
-                            referenceId = "BANK-LINK-" + UUID.randomUUID().toString().take(6).uppercase()
+                        transactionRepository.recordTransaction(
+                            TransactionRecord(
+                                type = TransactionType.BANK_DEPOSIT,
+                                title = "Bank Account Linked & Initial Deposit",
+                                description = "Initial simulated bank balance added",
+                                amountDisplay = "+₹10,000.00 INR",
+                                amountValue = initialDeposit,
+                                isDebit = false,
+                                category = "Banking",
+                                referenceId = "BANK-LINK-" + UUID.randomUUID().toString().take(6).uppercase()
+                            )
                         )
-                    )
+                    }
                 } catch (e: Exception) {
-                    // Fallback
+                    // Fallback log
                 }
             }
             return@withContext true
@@ -61,6 +71,15 @@ class BankingRepository @Inject constructor(
     suspend fun sendUpiMoney(recipientUpiId: String, amountInr: Double): Result<String> = withContext(Dispatchers.IO) {
         val currentUid = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("User not authenticated"))
         
+        val cleanUpi = recipientUpiId.lowercase().trim()
+        if (cleanUpi.isEmpty()) {
+            return@withContext Result.failure(Exception("Recipient UPI ID cannot be empty"))
+        }
+
+        if (amountInr <= 0.0) {
+            return@withContext Result.failure(Exception("Transfer amount must be greater than zero"))
+        }
+
         try {
             val senderDoc = firestore.collection("users").document(currentUid).get().await()
             val sender = senderDoc.toObject(User::class.java) ?: return@withContext Result.failure(Exception("User profile not found"))
@@ -70,11 +89,11 @@ class BankingRepository @Inject constructor(
             }
 
             val recipientQuery = firestore.collection("users")
-                .whereEqualTo("upiId", recipientUpiId.lowercase().trim())
+                .whereEqualTo("upiId", cleanUpi)
                 .get().await()
 
             val recipientDoc = recipientQuery.documents.firstOrNull()
-                ?: return@withContext Result.failure(Exception("UPI ID '$recipientUpiId' not found"))
+                ?: return@withContext Result.failure(Exception("UPI ID '$cleanUpi' not found"))
 
             val recipientUid = recipientDoc.id
 
@@ -92,7 +111,7 @@ class BankingRepository @Inject constructor(
             transactionRepository.recordTransaction(
                 TransactionRecord(
                     type = TransactionType.UPI_SEND,
-                    title = "UPI Payment to $recipientUpiId",
+                    title = "UPI Payment to $cleanUpi",
                     description = "P2P Instant UPI Transfer",
                     amountDisplay = "-₹${String.format("%.2f", amountInr)} INR",
                     amountValue = amountInr,
@@ -102,7 +121,7 @@ class BankingRepository @Inject constructor(
                 )
             )
 
-            Result.success("Sent ₹${String.format("%.2f", amountInr)} to $recipientUpiId")
+            Result.success("Sent ₹${String.format("%.2f", amountInr)} to $cleanUpi")
         } catch (e: Exception) {
             Result.failure(e)
         }

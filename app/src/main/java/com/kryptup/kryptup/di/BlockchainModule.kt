@@ -15,6 +15,7 @@ object BlockchainModule {
     @Provides
     @Singleton
     fun provideWeb3j(): Web3j {
-        return Web3j.build(HttpService("https://sepolia.infura.io/v3/772584592247-drepfquieplaf4g7me5t76p8sqtd1rgd.apps.googleusercontent.com")) // Placeholder or from config
+        // Public Ethereum Sepolia Testnet RPC Node
+        return Web3j.build(HttpService("https://ethereum-sepolia-rpc.publicnode.com"))
     }
 }

@@ -59,7 +59,7 @@ class ProfileViewModel @Inject constructor(
 
             val savedMnemonic = walletManager.getMnemonic()
             if (savedMnemonic != null) {
-                val addr = walletManager.createWallet(savedMnemonic, "password123")
+                val addr = walletManager.createWallet(savedMnemonic, "")
                 _walletAddress.value = addr
             }
         }

@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
-import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
@@ -48,11 +47,13 @@ class WalletViewModel @Inject constructor(
     private val _transactionStatus = MutableStateFlow<String?>(null)
     val transactionStatus = _transactionStatus.asStateFlow()
 
+    private val ethereumAddressRegex = Regex("^0x[a-fA-F0-9]{40}$")
+
     init {
         val savedMnemonic = walletManager.getMnemonic()
         if (savedMnemonic != null) {
             _mnemonic.value = savedMnemonic
-            createWallet("password123")
+            createWallet("")
         }
     }
 
@@ -60,7 +61,7 @@ class WalletViewModel @Inject constructor(
         _mnemonic.value = walletManager.generateMnemonic()
     }
 
-    fun createWallet(pass: String) {
+    fun createWallet(pass: String = "") {
         if (_mnemonic.value.isNotEmpty()) {
             walletManager.saveMnemonic(_mnemonic.value)
             _address.value = walletManager.createWallet(_mnemonic.value, pass)
@@ -101,23 +102,37 @@ class WalletViewModel @Inject constructor(
     }
 
     fun sendTransaction(toAddress: String, amountStr: String, symbol: String) {
-        val amount = amountStr.toBigDecimalOrNull() ?: return
+        val cleanAddress = toAddress.trim()
+        if (!cleanAddress.matches(ethereumAddressRegex)) {
+            _transactionStatus.value = "Error: Invalid Ethereum address format"
+            return
+        }
+
+        val amount = amountStr.toBigDecimalOrNull()
+        if (amount == null || amount <= BigDecimal.ZERO) {
+            _transactionStatus.value = "Error: Amount must be greater than 0"
+            return
+        }
+
         val currentMnemonic = _mnemonic.value
-        if (currentMnemonic.isEmpty()) return
+        if (currentMnemonic.isEmpty()) {
+            _transactionStatus.value = "Error: Wallet seed phrase missing"
+            return
+        }
 
         viewModelScope.launch {
             _isSending.value = true
             _transactionStatus.value = "Processing..."
             try {
-                val credentials = walletManager.getCredentialsFromMnemonic(currentMnemonic, "password123")
+                val credentials = walletManager.getCredentialsFromMnemonic(currentMnemonic, "")
                 val hash = if (symbol == "ETH") {
-                    ethereumRepository.sendEth(credentials, toAddress, amount)
+                    ethereumRepository.sendEth(credentials, cleanAddress, amount)
                 } else {
                     val token = _tokens.value.find { it.symbol == symbol }
                     ethereumRepository.sendErc20(
                         credentials,
                         token?.address ?: "",
-                        toAddress,
+                        cleanAddress,
                         amount,
                         token?.decimals ?: 18
                     )
@@ -129,7 +144,7 @@ class WalletViewModel @Inject constructor(
                     TransactionRecord(
                         type = TransactionType.CRYPTO_SEND,
                         title = "Sent $amountStr $symbol",
-                        description = "Transfer to ${toAddress.take(8)}...",
+                        description = "Transfer to ${cleanAddress.take(8)}...",
                         amountDisplay = "-$amountStr $symbol",
                         amountValue = amount.toDouble(),
                         isDebit = true,

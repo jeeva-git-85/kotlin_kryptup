@@ -2,6 +2,7 @@ package com.kryptup.kryptup
 
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
@@ -22,6 +23,13 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Prevent screen capture / screenshots on sensitive wallet & PIN screens
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
+
         enableEdgeToEdge()
         enableHighRefreshRate()
         
@@ -36,8 +44,10 @@ class MainActivity : FragmentActivity() {
                         title = "KryptUp Secure Entry",
                         subtitle = "Authenticate to access your wallet",
                         onSuccess = { isAuthenticated = true },
-                        onError = { 
-                            isAuthenticated = true // Allow bypass for testing
+                        onNotAvailable = { isAuthenticated = true },
+                        onError = { _, _ ->
+                            // Do NOT allow bypass on error or cancel; maintain authentication lock
+                            isAuthenticated = false
                         }
                     )
                 }

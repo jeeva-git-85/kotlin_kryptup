@@ -1,5 +1,6 @@
 package com.kryptup.kryptup.ui.navigation
 
+import java.net.URLEncoder
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -152,9 +153,11 @@ fun SetupNavGraph(navController: NavHostController) {
         }
         composable(route = Screen.Scanner.route) {
             com.kryptup.kryptup.ui.screens.scanner.ScannerScreen(
-                onQrScanned = { address ->
+                onQrScanned = { rawAddress ->
                     navController.popBackStack()
-                    navController.navigate("${Screen.WalletSend.route}?address=$address")
+                    val cleanAddress = rawAddress.trim().removePrefix("ethereum:")
+                    val encoded = URLEncoder.encode(cleanAddress, "UTF-8")
+                    navController.navigate("${Screen.WalletSend.route}?address=$encoded")
                 },
                 onBackClick = { navController.popBackStack() }
             )
