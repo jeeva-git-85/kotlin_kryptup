@@ -1,11 +1,11 @@
 # KryptUp - Unified Fintech Super-App
 
-![Status](https://img.shields.io/badge/Status-In%20Development-yellow)
+![Status](https://img.shields.io/badge/Status-Completed-brightgreen)
 ![Platform](https://img.shields.io/badge/Platform-Android-green)
 ![Language](https://img.shields.io/badge/Language-Kotlin-blue)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
-> A unified fintech "Super-App" that bridges traditional fiat currency and cryptocurrency systems, enhanced with AI-powered voice automation, biometric security, and integrated communication.
+> A unified fintech "Super-App" that bridges traditional fiat currency and cryptocurrency systems, enhanced with AI-powered voice automation, biometric hardware security, transaction PIN enforcement, and integrated communication.
 
 ---
 
@@ -15,7 +15,7 @@ KryptUp is an Android-based fintech application designed to unify the fragmented
 
 The rapid growth of digital finance has created a fragmented ecosystem where users must juggle multiple applications for banking, cryptocurrency management, trading, and peer-to-peer transfers. Traditional banking apps lack crypto support, while crypto platforms often ignore fiat integration and user-friendly automation. **KryptUp** addresses this gap by seamlessly bridging traditional fiat currency and cryptocurrency systems in one application.
 
-The app allows users to securely log in using Google or email/password authentication, link bank accounts (simulated with OTP verification), create and manage a non-custodial crypto wallet on the Ethereum Sepolia testnet, and execute peer-to-peer transactions by scanning QR codes followed by facial biometric verification. A built-in trading module provides real-time price data and a simulated order book for spot trading with market, limit, stop-loss, and take-profit orders. An AI-powered voice assistant, activated by the wake word **"Hey Krypt"**, enables hands-free operations such as sending crypto, placing trades, analyzing spending patterns, and providing EMI reminders. Users can chat with each other in real-time, with transaction receipts automatically reflected in the conversation. A reward points system incentivizes user engagement for transactions, trading activity, and daily logins.
+The app allows users to securely log in using Google or email/password authentication, link bank accounts (simulated with OTP verification), create and manage a non-custodial crypto wallet on the Ethereum Sepolia testnet, and execute peer-to-peer transactions by scanning QR codes followed by facial biometric verification or 4-digit transaction PIN. A built-in trading module provides real-time price data and a simulated order book for spot trading with market, limit, stop-loss, and take-profit orders. An AI-powered voice assistant, activated by the wake word **"Hey Krypt"**, enables hands-free operations such as sending crypto, placing trades, analyzing spending patterns, and providing EMI reminders. Users can chat with each other in real-time, with transaction receipts automatically reflected in the conversation. A reward points system incentivizes user engagement for transactions, trading activity, and daily logins.
 
 The project demonstrates the practical application of modern technologies including Kotlin, Jetpack Compose, Firebase, Web3j blockchain integration, CameraX, ML Kit, BiometricPrompt, and voice recognition, showcasing full-stack mobile development skills.
 
@@ -24,7 +24,7 @@ The project demonstrates the practical application of modern technologies includ
 ## 🎯 Project Objectives
 
 1. **Unified Financial Experience** – Provide a single app for both fiat and crypto management
-2. **Secure P2P Transfers** – Enable fast, secure transfers using QR codes and facial biometric verification
+2. **Secure P2P Transfers** – Enable fast, secure transfers using QR codes, facial biometric verification, and PIN authorization
 3. **Integrated Trading** – Offer a simulated cryptocurrency exchange with real-time prices
 4. **AI-Powered Automation** – Develop a voice assistant with wake word detection for hands-free financial tasks
 5. **Social Transactions** – Allow chat with automatic transaction receipts
@@ -38,7 +38,7 @@ The project demonstrates the practical application of modern technologies includ
 - Google Sign-In integration
 - Email/Password registration and login
 - Secure session management
-- User profile management
+- User profile management with unique KryptUp Tag/QR ID
 
 ### 🏦 Bank Account Linking
 - ATM card details input with auto-formatting
@@ -46,63 +46,61 @@ The project demonstrates the practical application of modern technologies includ
 - Masked card storage
 - Secure data handling
 
-### 💼 Crypto Wallet
-- Create new HD wallet
+### 💼 Crypto Vault
+- Create new HD wallet (BIP-39 seed)
 - Import wallet via seed phrase
 - Support for multiple tokens (ETH, USDT, USDC, DAI, LINK)
 - Balance tracking
-- Send/Receive functionality
+- Send/Receive functionality with Web3 Sepolia integration
 - Private key secured in Android Keystore
 
 ### 📷 QR Code System
-- Generate unique QR for each user
-- Scan QR codes using camera
+- Generate unique QR code for each user profile
+- Scan QR codes using CameraX and ML Kit
 - Recipient information lookup
-- Fast peer-to-peer identification
+- Fast peer-to-peer identification and transfer setup
 
-### 🔒 Transaction with Biometrics
-- Amount entry with currency selection
-- Facial/fingerprint verification via BiometricPrompt
-- Blockchain transaction signing
-- Real-time status updates
-- Transaction receipt generation
+### 🔒 Biometric & PIN Transaction Authorization
+- 4-Digit Transaction PIN setup and enforcement (`PinSecurityManager`) with SHA-256 hashing and random salt
+- Facial & Fingerprint verification via Android `BiometricPrompt` and `BiometricPaymentSecurityManager`
+- Hardware Security Enclave (TEE) backed AES-256 cipher encryption
+- Invalidation on new biometric enrollment (`setInvalidatedByBiometricEnrollment(true)`)
+- Camera Face Scanner visual overlay (`CameraFaceScannerView`)
+- Real-time transaction receipt generation
 
 ### 📊 Trading Platform
-- Real-time cryptocurrency prices from CoinGecko
-- Interactive price charts
+- Real-time cryptocurrency prices from CoinGecko API
+- Interactive price charts and candlestick visuals
 - Order book visualization
 - Market and limit orders
 - Stop-loss and take-profit options
-- Portfolio tracking with P&L
+- Portfolio tracking with P&L calculation
 
 ### 🎙️ AI Voice Assistant
-- Wake word: **"Hey Krypt"**
-- Voice greeting: "Hey! What can I help you with today?"
-- Intent classification (rule-based NLP)
-- Entity extraction (amount, recipient, currency)
+- Wake word activation: **"Hey Krypt"**
+- Voice greeting: *"Hey! What can I help you with today?"*
+- Rule-based Financial NLP Engine (`FinancialNlpEngine`)
+- Entity extraction (amounts, recipients, crypto tokens)
 - Supported commands:
-    - "Send 0.5 ETH to Alice"
-    - "Buy 1 ETH at 3000 with stop loss 2900"
-    - "What's my balance?"
-    - "How much did I spend yesterday?"
-    - "When is my next EMI?"
-    - "What's ETH price?"
-- Spending analysis with categories
-- EMI reminders
-- Text-to-speech responses
-- Auto-reset for next command
+    - *"Send 0.5 ETH to Alice"*
+    - *"Buy 1 ETH at 3000 with stop loss 2900"*
+    - *"What's my balance?"*
+    - *"How much did I spend yesterday?"*
+    - *"When is my next EMI?"*
+    - *"What's ETH price?"*
+- Spending analysis with category breakdown
+- EMI reminders & alerts
+- Text-to-speech voice responses
 
 ### 💬 Communication Hub
 - One-to-one real-time chat
-- Automatic transaction receipts in chat
-- Message read status
-- Unread count indicators
+- Automatic transaction receipts in chat threads
+- Message read status and unread indicators
 
 ### 🎁 Reward System
-- Earn points for activities
+- Earn points for transactions and trading activity
 - Points balance tracking
-- Redemption for benefits
-- Activity history
+- Benefit redemptions and activity history
 
 ---
 
@@ -112,58 +110,159 @@ The project demonstrates the practical application of modern technologies includ
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | Kotlin | 1.9.22 | Primary programming language |
-| Jetpack Compose | 1.5.4 | Modern UI framework |
-| Material 3 | 1.1.2 | Design system |
-| Navigation Compose | 2.7.6 | Screen navigation |
-| Coil | 2.5.0 | Image loading |
-| MPAndroidChart | 3.1.0 | Price charts |
+| Jetpack Compose | 1.5.4 | Declarative UI framework |
+| Material 3 | 1.1.2 | Design system components |
+| Navigation Compose | 2.7.6 | Screen navigation & argument passing |
+| Coil | 2.5.0 | Async image loading |
+| MPAndroidChart | 3.1.0 | Interactive financial charts |
 
 ### Architecture
 | Technology | Purpose |
 |------------|---------|
-| MVVM + Clean Architecture | Code organization |
-| Hilt | Dependency injection |
-| Kotlin Coroutines + Flow | Asynchronous operations |
-| Repository Pattern | Data abstraction |
+| MVVM + Clean Architecture | Separation of concerns |
+| Hilt / Manual DI | Dependency injection |
+| Kotlin Coroutines + Flow | Asynchronous programming & state management |
+| Repository Pattern | Abstracted data handling |
 
-### Backend
+### Backend & Cloud
 | Technology | Purpose |
 |------------|---------|
 | Firebase Authentication | User authentication |
-| Cloud Firestore | Primary database |
-| Firebase Realtime Database | Chat functionality |
+| Cloud Firestore | User profiles, balances, and transaction history |
+| Firebase Realtime Database | Real-time chat messages |
 
-### Blockchain
+### Blockchain & Web3
 | Technology | Purpose |
 |------------|---------|
-| Web3j | Ethereum interaction |
-| Ethereum Sepolia Testnet | Testing network |
-| ERC-20 | Token standard |
-| Android Keystore | Private key security |
+| Web3j | Ethereum blockchain interaction |
+| Ethereum Sepolia Testnet | Smart contract & transfer testing |
+| ERC-20 | Standard token interaction |
+| Android Keystore | Hardware private key storage |
 
-### Hardware Integration
+### Hardware & Security Integration
 | Technology | Purpose |
 |------------|---------|
-| CameraX | Camera preview |
-| ML Kit Barcode Scanning | QR detection |
-| BiometricPrompt | Facial/fingerprint verification |
-| SpeechRecognizer | Voice input |
-| TextToSpeech | Voice output |
-
-### Networking
-| Technology | Purpose |
-|------------|---------|
-| Retrofit | REST API client |
-| OkHttp | HTTP client |
-| Gson | JSON parsing |
-| CoinGecko API | Cryptocurrency prices |
-
-### Local Storage
-| Technology | Purpose |
-|------------|---------|
-| Room Database | Offline cache |
-| EncryptedSharedPreferences | Secure storage |
+| CameraX | Camera preview & scanner |
+| ML Kit Barcode Scanning | QR code recognition |
+| BiometricPrompt | Hardware-backed facial/fingerprint authentication |
+| Android KeyStore / TEE | Hardware secure enclave cryptographic operations |
+| SpeechRecognizer / TTS | Voice input processing and voice responses |
 
 ---
 
 ## 🏗️ System Architecture
+
+```
+                                  +-----------------------+
+                                  |   App User / Investor |
+                                  +-----------+-----------+
+                                              |
+                                              v
+                             +---------------------------------+
+                             |   KryptUp Fintech Super-App     |
+                             |   (Jetpack Compose + MVVM)      |
+                             +----+-------+-------+-------+----+
+                                  |       |       |       |
+         +------------------------+       |       |       +------------------------+
+         |                                |       |                                |
+         v                                v       v                                v
++------------------+         +------------------+   +------------------+   +-------------------+
+| Firebase Auth &  |         | Android KeyStore |   |  Ethereum Sepolia|   | CoinGecko REST    |
+| Firestore Cloud  |         | & Biometrics TEE |   |  Web3 Blockchain |   | Financial API     |
++------------------+         +------------------+   +------------------+   +-------------------+
+```
+
+### PlantUML Use-Case Overview
+The complete system use-case diagram is defined in `plantuml_use_case.puml` and includes:
+- **Authentication**: Registration, Login, Profile, PIN & Biometric setup.
+- **Banking**: Bank Account Linking, 2FA OTP, UPI Transfers, QR Payments.
+- **Crypto Vault**: BIP-39 Seed derivation, Crypto Transfers (ETH/USDT), Wallet QR scanning.
+- **Spot Trading**: Live Market Depth, Spot Buy/Sell Orders with Stop-Loss/Take-Profit.
+- **AI Voice Assistant**: Hands-free voice/text commands, Chat & DM transfers, Daily APY boosters.
+
+---
+
+## 🔒 Security Architecture
+
+### 1. 4-Digit Transaction PIN Enforcement (`PinSecurityManager`)
+- **Storage**: PINs are hashed using SHA-256 with a cryptographically secure 16-byte random salt and saved in `EncryptedSharedPreferences`.
+- **Lockout Policy**: 5 consecutive invalid attempts trigger a 15-minute temporary lockout to prevent brute-force attacks.
+- **Dialog Authorization**: Integrated into financial workflows via `PinSetupDialog` and `PinVerificationDialog`.
+
+### 2. Hardware-Backed Biometric Security (`BiometricPaymentSecurityManager`)
+- **Hardware Enclave**: Integrates with Android's Trusted Execution Environment (TEE) / StrongBox KeyStore via `BiometricPrompt`.
+- **Privacy Compliance**: Biometric feature templates remain inside the hardware enclave; raw biometric data is never exposed to application memory or external cloud servers.
+- **Key Invalidation**: Utilizes `setInvalidatedByBiometricEnrollment(true)`. Adding a new biometric face/fingerprint in device system settings invalidates existing payment keys.
+
+---
+
+## 📂 Project Structure
+
+```
+app/src/main/java/com/kryptup/kryptup/
+├── data/
+│   ├── model/           # User, TransactionRecord, BankAccount, CryptoWallet models
+│   ├── repository/      # AuthRepository, BankingRepository, TransactionRepository
+│   └── wallet/          # WalletManager (BIP-39 seed, Web3j integration)
+├── security/            # PinSecurityManager, BiometricPaymentSecurityManager
+├── ui/
+│   ├── components/      # Reusable Compose buttons, cards, charts, input fields
+│   ├── navigation/      # NavHost, NavGraph, screen routes
+│   ├── screens/
+│   │   ├── auth/        # LoginScreen, RegisterScreen, AuthViewModel
+│   │   ├── banking/     # BankLinkingScreen, BankingViewModel
+│   │   ├── home/        # HomeScreen, HomeViewModel
+│   │   ├── profile/     # ProfileScreen, ProfileViewModel
+│   │   ├── security/    # PinSetupDialog, PinVerificationDialog, CameraFaceScannerView
+│   │   ├── splash/      # SplashScreen
+│   │   ├── trading/     # TradingScreen, TradingViewModel
+│   │   └── wallet/      # SendScreen, ReceiveScreen, WalletViewModel
+│   └── theme/           # Color, Type, Theme tokens
+└── voice/               # FinancialNlpEngine, VoiceAssistantManager
+```
+
+---
+
+## 🚀 Getting Started & Build Instructions
+
+### Prerequisites
+- **Android Studio**: Jellyfish (2024.1.1) or higher
+- **JDK**: Java 17
+- **Android SDK**: API Level 34 (Minimum API Level 26 / Android 8.0)
+
+### Building the Project
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/jeeva-git-85/kotlin_kryptup.git
+   cd kotlin_kryptup
+   ```
+2. Build debug APK using Gradle:
+   ```bash
+   ./gradlew assembleDebug
+   ```
+3. Run on a connected device or Android Emulator:
+   ```bash
+   ./gradlew installDebug
+   ```
+
+---
+
+## 🧪 Testing
+
+The project includes comprehensive unit tests covering critical security algorithms and NLP voice command interpretation.
+
+### Running Unit Tests
+Execute the Gradle test task from the terminal:
+```bash
+./gradlew testDebugUnitTest
+```
+
+### Test Suites Included
+- **`PinSecurityManagerTest`**: Validates PIN setup, salted SHA-256 verification, invalid PIN rejection, and 5-attempt lockout security.
+- **`FinancialNlpEngineTest`**: Validates intent classification and entity parsing for voice commands (sending crypto, checking balances, querying exchange rates).
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the `LICENSE` file for details.
