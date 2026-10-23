@@ -15,7 +15,7 @@ KryptUp is an Android-based fintech application designed to unify the fragmented
 
 The rapid growth of digital finance has created a fragmented ecosystem where users must juggle multiple applications for banking, cryptocurrency management, trading, and peer-to-peer transfers. Traditional banking apps lack crypto support, while crypto platforms often ignore fiat integration and user-friendly automation. **KryptUp** addresses this gap by seamlessly bridging traditional fiat currency and cryptocurrency systems in one application.
 
-The app allows users to securely log in using Google or email/password authentication, link bank accounts (simulated with OTP verification), create and manage a non-custodial crypto wallet on the Ethereum Sepolia testnet, and execute peer-to-peer transactions by scanning QR codes followed by facial biometric verification or 4-digit transaction PIN. A built-in trading module provides real-time price data and a simulated order book for spot trading with market, limit, stop-loss, and take-profit orders. An AI-powered voice assistant, activated by the wake word **"Hey Krypt"**, enables hands-free operations such as sending crypto, placing trades, analyzing spending patterns, and providing EMI reminders. Users can chat with each other in real-time, with transaction receipts automatically reflected in the conversation. A reward points system incentivizes user engagement for transactions, trading activity, and daily logins.
+The app allows users to securely log in using Google or email/password authentication, link bank accounts (simulated with OTP verification), create and manage a non-custodial crypto wallet on the Ethereum Sepolia testnet, and execute peer-to-peer transactions by scanning QR codes followed by facial biometric verification or 4-digit transaction PIN. A built-in trading module provides real-time price data and a simulated order book for spot trading with market, limit, stop-loss, and take-profit orders. An AI-powered voice assistant enables hands-free operations such as sending crypto, placing trades, analyzing spending patterns, and providing EMI reminders. Users can chat with each other in real-time, with transaction receipts automatically reflected in the conversation. A reward points system incentivizes user engagement for transactions, trading activity, and daily logins.
 
 The project demonstrates the practical application of modern technologies including Kotlin, Jetpack Compose, Firebase, Web3j blockchain integration, CameraX, ML Kit, BiometricPrompt, and voice recognition, showcasing full-stack mobile development skills.
 
@@ -26,7 +26,7 @@ The project demonstrates the practical application of modern technologies includ
 1. **Unified Financial Experience** – Provide a single app for both fiat and crypto management
 2. **Secure P2P Transfers** – Enable fast, secure transfers using QR codes, facial biometric verification, and PIN authorization
 3. **Integrated Trading** – Offer a simulated cryptocurrency exchange with real-time prices
-4. **AI-Powered Automation** – Develop a voice assistant with wake word detection for hands-free financial tasks
+4. **AI-Powered Automation** – Develop a voice assistant with speech recognition for hands-free financial tasks
 5. **Social Transactions** – Allow chat with automatic transaction receipts
 6. **User Engagement** – Implement a reward points system
 
@@ -42,13 +42,13 @@ The project demonstrates the practical application of modern technologies includ
 
 ### 🏦 Bank Account Linking
 - ATM card details input with auto-formatting
-- OTP verification (simulated)
+- OTP verification with once-per-user initial deposit bonus (₹10,000)
 - Masked card storage
 - Secure data handling
 
 ### 💼 Crypto Vault
-- Create new HD wallet (BIP-39 seed)
-- Import wallet via seed phrase
+- Create new HD wallet with standard empty BIP-39 seed passphrase
+- Import wallet via 12-word seed phrase
 - Support for multiple tokens (ETH, USDT, USDC, DAI, LINK)
 - Balance tracking
 - Send/Receive functionality with Web3 Sepolia integration
@@ -58,10 +58,11 @@ The project demonstrates the practical application of modern technologies includ
 - Generate unique QR code for each user profile
 - Scan QR codes using CameraX and ML Kit
 - Recipient information lookup
-- Fast peer-to-peer identification and transfer setup
+- Input validation and URL-encoded route parameter handling
 
 ### 🔒 Biometric & PIN Transaction Authorization
-- 4-Digit Transaction PIN setup and enforcement (`PinSecurityManager`) with SHA-256 hashing and random salt
+- 4-Digit Transaction PIN setup and enforcement (`PinSecurityManager`) with SHA-256 hashing and 16-byte per-user random salt
+- 5-failed-attempt threshold with 15-minute temporary lockout enforcement
 - Facial & Fingerprint verification via Android `BiometricPrompt` and `BiometricPaymentSecurityManager`
 - Hardware Security Enclave (TEE) backed AES-256 cipher encryption
 - Invalidation on new biometric enrollment (`setInvalidatedByBiometricEnrollment(true)`)
@@ -77,7 +78,7 @@ The project demonstrates the practical application of modern technologies includ
 - Portfolio tracking with P&L calculation
 
 ### 🎙️ AI Voice Assistant
-- Wake word activation: **"Hey Krypt"**
+- Interactive microphone activation
 - Voice greeting: *"Hey! What can I help you with today?"*
 - Rule-based Financial NLP Engine (`FinancialNlpEngine`)
 - Entity extraction (amounts, recipients, crypto tokens)
@@ -109,18 +110,17 @@ The project demonstrates the practical application of modern technologies includ
 ### Frontend
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| Kotlin | 1.9.22 | Primary programming language |
-| Jetpack Compose | 1.5.4 | Declarative UI framework |
-| Material 3 | 1.1.2 | Design system components |
-| Navigation Compose | 2.7.6 | Screen navigation & argument passing |
-| Coil | 2.5.0 | Async image loading |
+| Kotlin | 2.1.10 | Primary programming language |
+| Jetpack Compose | 2024.12.01 BOM | Declarative UI framework |
+| Material 3 | 1.3.1 | Design system components |
+| Navigation Compose | 2.8.5 | Screen navigation & argument passing |
 | MPAndroidChart | 3.1.0 | Interactive financial charts |
 
 ### Architecture
 | Technology | Purpose |
 |------------|---------|
 | MVVM + Clean Architecture | Separation of concerns |
-| Hilt / Manual DI | Dependency injection |
+| Hilt | Dependency injection |
 | Kotlin Coroutines + Flow | Asynchronous programming & state management |
 | Repository Pattern | Abstracted data handling |
 
@@ -128,14 +128,14 @@ The project demonstrates the practical application of modern technologies includ
 | Technology | Purpose |
 |------------|---------|
 | Firebase Authentication | User authentication |
-| Cloud Firestore | User profiles, balances, and transaction history |
-| Firebase Realtime Database | Real-time chat messages |
+| Cloud Firestore | User profiles, balances, and transaction history (`firestore.rules`) |
+| Firebase Realtime Database | Real-time chat messages (`database.rules.json`) |
 
 ### Blockchain & Web3
 | Technology | Purpose |
 |------------|---------|
 | Web3j | Ethereum blockchain interaction |
-| Ethereum Sepolia Testnet | Smart contract & transfer testing |
+| Ethereum Sepolia Testnet | Smart contract & transfer testing (`https://ethereum-sepolia-rpc.publicnode.com`) |
 | ERC-20 | Standard token interaction |
 | Android Keystore | Hardware private key storage |
 
@@ -146,6 +146,7 @@ The project demonstrates the practical application of modern technologies includ
 | ML Kit Barcode Scanning | QR code recognition |
 | BiometricPrompt | Hardware-backed facial/fingerprint authentication |
 | Android KeyStore / TEE | Hardware secure enclave cryptographic operations |
+| FLAG_SECURE | Window screenshot and screen capture prevention |
 | SpeechRecognizer / TTS | Voice input processing and voice responses |
 
 ---
@@ -185,7 +186,7 @@ The complete system use-case diagram is defined in `plantuml_use_case.puml` and 
 ## 🔒 Security Architecture
 
 ### 1. 4-Digit Transaction PIN Enforcement (`PinSecurityManager`)
-- **Storage**: PINs are hashed using SHA-256 with a cryptographically secure 16-byte random salt and saved in `EncryptedSharedPreferences`.
+- **Storage**: PINs are hashed using SHA-256 with a cryptographically secure 16-byte per-user random salt and saved in `EncryptedSharedPreferences`.
 - **Lockout Policy**: 5 consecutive invalid attempts trigger a 15-minute temporary lockout to prevent brute-force attacks.
 - **Dialog Authorization**: Integrated into financial workflows via `PinSetupDialog` and `PinVerificationDialog`.
 
@@ -193,6 +194,11 @@ The complete system use-case diagram is defined in `plantuml_use_case.puml` and 
 - **Hardware Enclave**: Integrates with Android's Trusted Execution Environment (TEE) / StrongBox KeyStore via `BiometricPrompt`.
 - **Privacy Compliance**: Biometric feature templates remain inside the hardware enclave; raw biometric data is never exposed to application memory or external cloud servers.
 - **Key Invalidation**: Utilizes `setInvalidatedByBiometricEnrollment(true)`. Adding a new biometric face/fingerprint in device system settings invalidates existing payment keys.
+
+### 3. Application Hardening & Cloud Rules
+- **Screen Capture Protection**: `WindowManager.LayoutParams.FLAG_SECURE` enforced in `MainActivity` to prevent screenshots on sensitive screens.
+- **Backup Prevention**: `android:allowBackup="false"` prevents exporting `EncryptedSharedPreferences` via ADB or cloud backups.
+- **Cloud Access Control**: `firestore.rules` and `database.rules.json` enforce document-level ownership permissions for Cloud Firestore and Realtime Database.
 
 ---
 
